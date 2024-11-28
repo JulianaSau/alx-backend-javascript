@@ -6,7 +6,6 @@ const path = process.argv[2] || 'none';
 app.get('/', (req, res) => {
   res.send('Hello Holberton School!');
 });
-
 app.get('/students', (req, res) => {
   res.write('This is the list of our students\n');
   const data = fs.readFile(path, 'utf8', (err, data) => {
@@ -36,6 +35,5 @@ app.get('/students', (req, res) => {
 	    }
   });
 });
-
 app.listen(1245);
 module.exports = app;
