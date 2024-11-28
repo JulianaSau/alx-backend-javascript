@@ -1,34 +1,74 @@
-import { path } from '../server';
+import readDatabase from '../utils';
 
-const readDatabase = require('../utils');
+/**
+ * The list of supported majors.
+ */
+const VALID_MAJORS = ['CS', 'SWE'];
 
-export class StudentsController {
-  static getAllStudents (request, response) {
-    readDatabase(path)
-      .then((data) => {
-        response.write('This is the list of our students\n');
-        response.write(`Number of students in CS: ${data.csList.length}. List: ${data.csList.join(', ')}\n`);
-        response.write(`Number of students in SWE: ${data.sweList.length}. List: ${data.sweList.join(', ')}\n`);
-        response.status(200).send();
+/**
+ * Contains the student-related route handlers.
+ * @author Bezaleel Olakunori <https://github.com/B3zaleel>
+ */
+class StudentsController {
+  static getAllStudents(request, response) {
+    const dataPath = process.argv.length > 2 ? process.argv[2] : '';
+
+    readDatabase(dataPath)
+      .then((studentGroups) => {
+        const responseParts = ['This is the list of our students'];
+        // A comparison function for ordering a list of strings in ascending
+        // order by alphabetic order and case insensitive
+        const cmpFxn = (a, b) => {
+          if (a[0].toLowerCase() < b[0].toLowerCase()) {
+            return -1;
+          }
+          if (a[0].toLowerCase() > b[0].toLowerCase()) {
+            return 1;
+          }
+          return 0;
+        };
+
+        for (const [field, group] of Object.entries(studentGroups).sort(cmpFxn)) {
+          responseParts.push([
+            `Number of students in ${field}: ${group.length}.`,
+            'List:',
+            group.map((student) => student.firstname).join(', '),
+          ].join(' '));
+        }
+        response.status(200).send(responseParts.join('\n'));
       })
-      .catch(() => {
-        response.status(500).send('Cannot load the database');
+      .catch((err) => {
+        response
+          .status(500)
+          .send(err instanceof Error ? err.message : err.toString());
       });
   }
 
-  static getAllStudentsByMajor (request, response) {
-    readDatabase(path)
-      .then((data) => {
-        if (request.params.major === 'CS') {
-          response.status(200).send(`List: ${data.csList.join(', ')}`);
-        } else if (request.params.major === 'SWE') {
-          response.status(200).send(`List: ${data.sweList.join(', ')}`);
-        } else {
-          response.status(500).send('Major parameter must be CS or SWE');
+  static getAllStudentsByMajor(request, response) {
+    const dataPath = process.argv.length > 2 ? process.argv[2] : '';
+    const { major } = request.params;
+
+    if (!VALID_MAJORS.includes(major)) {
+      response.status(500).send('Major parameter must be CS or SWE');
+      return;
+    }
+    readDatabase(dataPath)
+      .then((studentGroups) => {
+        let responseText = '';
+
+        if (Object.keys(studentGroups).includes(major)) {
+          const group = studentGroups[major];
+          responseText = `List: ${group.map((student) => student.firstname).join(', ')}`;
         }
+        response.status(200).send(responseText);
       })
-      .catch(() => {
-        response.status(500).send('Cannot load the database');
+      .catch((err) => {
+        response
+          .status(500)
+          .send(err instanceof Error ? err.message : err.toString());
       });
   }
 }
+
+export default StudentsController;
+module.exports = StudentsController;
